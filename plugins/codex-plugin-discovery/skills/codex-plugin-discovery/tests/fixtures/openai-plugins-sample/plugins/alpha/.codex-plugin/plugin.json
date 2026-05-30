@@ -1,0 +1,17 @@
+{
+  "name": "alpha",
+  "version": "1.0.0",
+  "description": "Analyze customer support tickets and summarize trends",
+  "author": {"name": "Example"},
+  "license": "MIT",
+  "keywords": ["support", "tickets", "analysis"],
+  "homepage": "https://example.com/alpha",
+  "repository": "https://github.com/openai/plugins",
+  "interface": {
+    "displayName": "Alpha Support",
+    "shortDescription": "Support ticket analysis",
+    "longDescription": "Finds themes in support conversations and creates summaries",
+    "category": "Productivity",
+    "capabilities": ["summarization", "customer support"]
+  }
+}

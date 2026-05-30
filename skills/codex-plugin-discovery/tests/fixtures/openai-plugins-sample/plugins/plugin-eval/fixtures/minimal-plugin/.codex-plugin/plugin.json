@@ -1,0 +1,15 @@
+{
+  "name": "fixture-plugin",
+  "version": "1.0.0",
+  "description": "Fixture plugin that should never be indexed",
+  "author": {"name": "Example"},
+  "license": "MIT",
+  "keywords": ["fixture"],
+  "interface": {
+    "displayName": "Fixture Plugin",
+    "shortDescription": "Fixture",
+    "longDescription": "Test fixture",
+    "category": "Testing",
+    "capabilities": ["fixture"]
+  }
+}

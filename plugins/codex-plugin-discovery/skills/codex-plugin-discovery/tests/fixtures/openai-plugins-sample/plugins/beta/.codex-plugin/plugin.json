@@ -1,0 +1,15 @@
+{
+  "name": "beta",
+  "version": "1.0.0",
+  "description": "Create charts and dashboards from analytics data",
+  "author": {"name": "Example"},
+  "license": "MIT",
+  "keywords": ["analytics", "charts", "dashboard"],
+  "interface": {
+    "displayName": "Beta Charts",
+    "shortDescription": "Analytics dashboards",
+    "longDescription": "Builds charts from business metrics",
+    "category": "Data",
+    "capabilities": ["charts", "dashboard"]
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "name": "codex-plugin-discovery",
+  "version": "0.1.0",
+  "description": "Discover task-relevant Codex plugins from the official openai/plugins repository.",
+  "author": {
+    "name": "Johnny"
+  },
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "plugins",
+    "discovery",
+    "openai-plugins"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Codex Plugin Discovery",
+    "shortDescription": "Find relevant Codex plugins.",
+    "longDescription": "Searches a generated index of the official openai/plugins repository and explains candidate Codex plugins without reading local caches or installing anything automatically.",
+    "developerName": "Johnny",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Plugin discovery",
+      "Recommendation",
+      "Metadata search"
+    ],
+    "defaultPrompt": [
+      "Find Codex plugins for my current task.",
+      "Search openai/plugins for spreadsheet tools.",
+      "What plugin could help me make slides?"
+    ]
+  }
+}
