@@ -19,7 +19,7 @@ Restart Codex after installing so the skill metadata is picked up.
 Ask for plugin recommendations with a task or category:
 
 ```text
-有没有插件能帮我做 slide deck？
+What Codex plugin could help me make a slide deck?
 ```
 
 ```text
