@@ -33,6 +33,12 @@ What Codex plugin could help me make a slide deck?
 Find a Codex plugin for analyzing spreadsheets.
 ```
 
+Ask what a specific plugin does:
+
+```text
+What does the Google Drive plugin do?
+```
+
 Broad questions such as "what plugins can I use?" are answered concisely. The skill does not dump the full index.
 
 ## Update The Index
