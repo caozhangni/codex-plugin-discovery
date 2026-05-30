@@ -6,10 +6,17 @@ It is intentionally scoped: it searches metadata generated from `https://github.
 
 ## Install As A Skill
 
-After publishing this repository to GitHub, install the skill with:
+In Codex, ask the built-in skill installer to install this skill from GitHub:
 
 ```text
-$skill-installer install https://github.com/<owner>/<repo>/tree/main/skills/codex-plugin-discovery
+Install the skill from https://github.com/caozhangni/codex-plugin-discovery/tree/main/skills/codex-plugin-discovery
+```
+
+Or run the installer script directly:
+
+```bash
+python3 ~/.codex/skills/.system/skill-installer/scripts/install-skill-from-github.py \
+  --url https://github.com/caozhangni/codex-plugin-discovery/tree/main/skills/codex-plugin-discovery
 ```
 
 Restart Codex after installing so the skill metadata is picked up.
