@@ -1,6 +1,6 @@
 ---
 name: codex-plugin-discovery
-description: Use when a user asks what Codex plugins are available or can be used, wants plugin recommendations for a task, asks to find/search/discover installable plugins, or uses Chinese prompts like "有哪些插件可以用", "有哪些插件可以使用", "找插件", "插件市场", or "有没有插件能".
+description: Use when a user asks what Codex plugins are available or can be used, wants plugin recommendations for a task, asks to find/search/discover installable plugins, asks about the plugin marketplace, or asks whether a plugin can help with a task.
 ---
 
 # Codex Plugin Discovery

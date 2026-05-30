@@ -33,7 +33,7 @@ class SearchIndexTests(unittest.TestCase):
         rendered = search_index.render_results(search_index.search(index, "dashboard charts", limit=1), index)
 
         self.assertIn("Beta Charts", rendered)
-        self.assertIn("只覆盖 openai/plugins", rendered)
+        self.assertIn("Results only cover openai/plugins", rendered)
 
     def test_singular_query_matches_plural_metadata_terms(self):
         index = search_index.load_index(self.output)

@@ -170,7 +170,7 @@ def search(index: dict[str, Any], query: str, limit: int = 5) -> list[dict[str, 
 
 def render_results(results: list[dict[str, Any]], index: dict[str, Any]) -> str:
     """Render search results as Markdown-ish recommendations."""
-    boundary = "结果只覆盖 openai/plugins"
+    boundary = "Results only cover openai/plugins"
     source = index.get("source") or {}
     commit = source.get("commit")
     lines = [boundary]
