@@ -8,7 +8,9 @@ It is intentionally scoped: it searches metadata generated from `https://github.
 
 In Codex, invoke Skill Installer with the GitHub skill path:
 
-@Skill Installer [https://github.com/caozhangni/codex-plugin-discovery/tree/main/skills/codex-plugin-discovery](https://github.com/caozhangni/codex-plugin-discovery/tree/main/skills/codex-plugin-discovery)
+```text
+@Skill Installer https://github.com/caozhangni/codex-plugin-discovery/tree/main/skills/codex-plugin-discovery
+```
 
 Or run the installer script directly:
 
