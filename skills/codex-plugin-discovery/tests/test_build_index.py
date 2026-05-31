@@ -1,5 +1,8 @@
 import json
+import os
 import pathlib
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -11,6 +14,56 @@ import build_index
 
 
 FIXTURE_REPO = ROOT / "tests" / "fixtures" / "openai-plugins-sample"
+
+
+def run_git(repo_dir, *args, env=None):
+    result = subprocess.run(
+        ["git", *args],
+        cwd=repo_dir,
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=env,
+    )
+    return result.stdout.strip()
+
+
+def init_git_repo(repo_dir):
+    repo_dir.mkdir(parents=True, exist_ok=True)
+    run_git(repo_dir, "init")
+    run_git(repo_dir, "config", "user.name", "Test User")
+    run_git(repo_dir, "config", "user.email", "test@example.com")
+    return repo_dir
+
+
+def commit_all(repo_dir, message, date):
+    env = {
+        **os.environ,
+        "GIT_AUTHOR_DATE": date,
+        "GIT_COMMITTER_DATE": date,
+    }
+    run_git(repo_dir, "add", ".")
+    run_git(repo_dir, "commit", "-m", message, env=env)
+    return run_git(repo_dir, "rev-parse", "HEAD")
+
+
+def write_manifest(repo_dir, plugin_name):
+    manifest_path = repo_dir / "plugins" / plugin_name / ".codex-plugin" / "plugin.json"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(
+        json.dumps({"name": plugin_name, "description": f"{plugin_name} plugin"}),
+        encoding="utf-8",
+    )
+    return manifest_path
+
+
+def copy_fixture_to_git_repo(tmp_dir):
+    repo_dir = pathlib.Path(tmp_dir) / "openai-plugins-sample"
+    shutil.copytree(FIXTURE_REPO, repo_dir)
+    init_git_repo(repo_dir)
+    commit_all(repo_dir, "Initial fixture", "2026-05-01T12:00:00+00:00")
+    return repo_dir
 
 
 class BuildIndexTests(unittest.TestCase):
@@ -29,9 +82,10 @@ class BuildIndexTests(unittest.TestCase):
     def test_build_index_extracts_recommendation_fields(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             output = pathlib.Path(tmp_dir) / "plugins-index.json"
+            repo_dir = copy_fixture_to_git_repo(tmp_dir)
 
             index = build_index.build_index(
-                repo_dir=FIXTURE_REPO,
+                repo_dir=repo_dir,
                 output_path=output,
                 upstream_sha="abc123",
             )
@@ -59,9 +113,48 @@ class BuildIndexTests(unittest.TestCase):
             self.assertIn("charts", beta["capabilities"])
             self.assertIn("analytics dashboards", beta["search_text"])
 
+    def test_build_index_records_manifest_first_seen_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            repo_dir = init_git_repo(pathlib.Path(tmp_dir) / "repo")
+            output = pathlib.Path(tmp_dir) / "plugins-index.json"
+
+            write_manifest(repo_dir, "alpha")
+            alpha_commit = commit_all(
+                repo_dir,
+                "Add alpha plugin",
+                "2026-05-01T12:00:00+00:00",
+            )
+            write_manifest(repo_dir, "beta")
+            beta_commit = commit_all(
+                repo_dir,
+                "Add beta plugin",
+                "2026-05-02T12:00:00+00:00",
+            )
+
+            index = build_index.build_index(
+                repo_dir=repo_dir,
+                output_path=output,
+                upstream_sha="abc123",
+            )
+
+            plugins = {plugin["name"]: plugin for plugin in index["plugins"]}
+            self.assertIn("first_seen_commit", plugins["alpha"])
+            self.assertIn("first_seen_at", plugins["alpha"])
+            self.assertIn("first_seen_commit", plugins["beta"])
+            self.assertIn("first_seen_at", plugins["beta"])
+            self.assertEqual(plugins["alpha"]["first_seen_commit"], alpha_commit)
+            self.assertEqual(plugins["alpha"]["first_seen_at"], "2026-05-01T12:00:00Z")
+            self.assertEqual(plugins["beta"]["first_seen_commit"], beta_commit)
+            self.assertEqual(plugins["beta"]["first_seen_at"], "2026-05-02T12:00:00Z")
+            self.assertNotEqual(
+                plugins["alpha"]["first_seen_commit"],
+                plugins["beta"]["first_seen_commit"],
+            )
+
     def test_main_with_repo_dir_does_not_call_remote_head(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             output = pathlib.Path(tmp_dir) / "plugins-index.json"
+            repo_dir = copy_fixture_to_git_repo(tmp_dir)
             original_remote_head = build_index.remote_head
             original_argv = sys.argv
 
@@ -73,7 +166,7 @@ class BuildIndexTests(unittest.TestCase):
                 sys.argv = [
                     "build_index.py",
                     "--repo-dir",
-                    str(FIXTURE_REPO),
+                    str(repo_dir),
                     "--output",
                     str(output),
                 ]

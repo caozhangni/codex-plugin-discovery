@@ -38,9 +38,9 @@ def ensure_repo(cache_dir: Path) -> Path:
     cache_dir.mkdir(parents=True, exist_ok=True)
 
     if not repo_dir.exists():
-        run_git(["clone", "--depth", "1", REPOSITORY_URL, str(repo_dir)])
+        run_git(["clone", REPOSITORY_URL, str(repo_dir)])
     else:
-        run_git(["fetch", "--depth", "1", "origin", "HEAD"], cwd=repo_dir)
+        run_git(["fetch", "origin", "HEAD"], cwd=repo_dir)
         run_git(["checkout", "--detach", "FETCH_HEAD"], cwd=repo_dir)
 
     return repo_dir
@@ -82,6 +82,24 @@ def companion_surfaces(plugin_dir: Path) -> list[str]:
     return surfaces
 
 
+def manifest_first_seen(manifest_path: Path, repo_dir: Path) -> dict[str, str]:
+    """Return the commit and timestamp where a manifest first appeared."""
+    rel_path = manifest_path.relative_to(repo_dir).as_posix()
+    output = run_git(
+        ["log", "--diff-filter=A", "--format=%H%x00%cI", "--", rel_path],
+        cwd=repo_dir,
+    )
+    entries = [line for line in output.splitlines() if line]
+    if not entries:
+        raise ValueError(f"No git add history found for {rel_path}")
+
+    commit, committed_at = entries[-1].split("\x00", 1)
+    return {
+        "first_seen_at": committed_at,
+        "first_seen_commit": commit,
+    }
+
+
 def build_plugin_record(manifest_path: Path, repo_dir: Path) -> dict[str, Any]:
     """Build the recommendation fields for one plugin manifest."""
     manifest = read_json(manifest_path)
@@ -110,6 +128,7 @@ def build_plugin_record(manifest_path: Path, repo_dir: Path) -> dict[str, Any]:
     plugin_path = plugin_dir.relative_to(repo_dir).as_posix()
     manifest_rel_path = manifest_path.relative_to(repo_dir).as_posix()
     surfaces = companion_surfaces(plugin_dir)
+    first_seen = manifest_first_seen(manifest_path, repo_dir)
 
     search_parts = [
         name,
@@ -133,6 +152,8 @@ def build_plugin_record(manifest_path: Path, repo_dir: Path) -> dict[str, Any]:
         "homepage": homepage,
         "plugin_path": plugin_path,
         "manifest_path": manifest_rel_path,
+        "first_seen_at": first_seen["first_seen_at"],
+        "first_seen_commit": first_seen["first_seen_commit"],
         "companion_surfaces": surfaces,
         "search_text": " ".join(part for part in search_parts if part).lower(),
     }
