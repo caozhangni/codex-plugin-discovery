@@ -85,10 +85,25 @@ def companion_surfaces(plugin_dir: Path) -> list[str]:
 def manifest_first_seen(manifest_path: Path, repo_dir: Path) -> dict[str, str]:
     """Return the commit and timestamp where a manifest first appeared."""
     rel_path = manifest_path.relative_to(repo_dir).as_posix()
-    output = run_git(
-        ["log", "--diff-filter=A", "--format=%H%x00%cI", "--", rel_path],
-        cwd=repo_dir,
-    )
+    try:
+        output = run_git(
+            ["log", "--diff-filter=A", "--format=%H%x00%cI", "--", rel_path],
+            cwd=repo_dir,
+        )
+    except subprocess.CalledProcessError as error:
+        stderr = (error.stderr or "").strip()
+        stdout = (error.stdout or "").strip()
+        context_parts = []
+        if stderr:
+            context_parts.append(f"stderr: {stderr}")
+        if stdout:
+            context_parts.append(f"stdout: {stdout}")
+        context = "; ".join(
+            context_parts
+        )
+        suffix = f" ({context})" if context else ""
+        raise ValueError(f"Failed to read first-seen history for {rel_path}{suffix}") from error
+
     entries = [line for line in output.splitlines() if line]
     if not entries:
         raise ValueError(f"No git add history found for {rel_path}")

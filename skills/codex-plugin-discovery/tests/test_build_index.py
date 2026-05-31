@@ -151,6 +151,19 @@ class BuildIndexTests(unittest.TestCase):
                 plugins["beta"]["first_seen_commit"],
             )
 
+    def test_manifest_first_seen_reports_path_when_git_log_fails(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            repo_dir = pathlib.Path(tmp_dir) / "not-git"
+            manifest_path = write_manifest(repo_dir, "alpha")
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "Failed to read first-seen history for plugins/alpha/.codex-plugin/plugin.json",
+            ) as raised:
+                build_index.manifest_first_seen(manifest_path, repo_dir)
+
+            self.assertIn("fatal:", str(raised.exception))
+
     def test_main_with_repo_dir_does_not_call_remote_head(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             output = pathlib.Path(tmp_dir) / "plugins-index.json"
