@@ -109,6 +109,22 @@ class ListRecentPluginsTests(unittest.TestCase):
                         **kwargs,
                     )
 
+    def test_recent_plugins_rejects_missing_first_seen_metadata(self):
+        index = {
+            "plugins": [
+                {
+                    "name": "missing-date",
+                    "plugin_path": "plugins/missing-date",
+                }
+            ]
+        }
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "Plugin missing-date is missing first_seen_at",
+        ):
+            list_recent_plugins.recent_plugins(index, days=7, limit=10, now=self.now)
+
 
 if __name__ == "__main__":
     unittest.main()

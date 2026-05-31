@@ -55,7 +55,8 @@ def recent_plugins(
     for plugin in index.get("plugins", []):
         first_seen_at = plugin.get("first_seen_at")
         if not first_seen_at:
-            continue
+            identifier = plugin.get("name") or plugin.get("plugin_path") or "unknown plugin"
+            raise ValueError(f"Plugin {identifier} is missing first_seen_at")
 
         first_seen = parse_timestamp(str(first_seen_at))
         if first_seen >= cutoff:
