@@ -164,6 +164,35 @@ class BuildIndexTests(unittest.TestCase):
 
             self.assertIn("fatal:", str(raised.exception))
 
+    def test_ensure_repo_unshallows_existing_cache(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cache_dir = pathlib.Path(tmp_dir) / "cache"
+            repo_dir = cache_dir / "openai-plugins"
+            shallow_path = repo_dir / ".git" / "shallow"
+            shallow_path.parent.mkdir(parents=True)
+            shallow_path.write_text("shallow-boundary\n", encoding="utf-8")
+            calls = []
+            original_run_git = build_index.run_git
+
+            def record_run_git(args, cwd=None):
+                calls.append((args, cwd))
+                return ""
+
+            try:
+                build_index.run_git = record_run_git
+                self.assertEqual(build_index.ensure_repo(cache_dir), repo_dir)
+            finally:
+                build_index.run_git = original_run_git
+
+            self.assertEqual(
+                calls,
+                [
+                    (["fetch", "--unshallow", "origin"], repo_dir),
+                    (["fetch", "origin", "HEAD"], repo_dir),
+                    (["checkout", "--detach", "FETCH_HEAD"], repo_dir),
+                ],
+            )
+
     def test_main_with_repo_dir_does_not_call_remote_head(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             output = pathlib.Path(tmp_dir) / "plugins-index.json"

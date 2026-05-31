@@ -40,6 +40,8 @@ def ensure_repo(cache_dir: Path) -> Path:
     if not repo_dir.exists():
         run_git(["clone", REPOSITORY_URL, str(repo_dir)])
     else:
+        if (repo_dir / ".git" / "shallow").exists():
+            run_git(["fetch", "--unshallow", "origin"], cwd=repo_dir)
         run_git(["fetch", "origin", "HEAD"], cwd=repo_dir)
         run_git(["checkout", "--detach", "FETCH_HEAD"], cwd=repo_dir)
 
