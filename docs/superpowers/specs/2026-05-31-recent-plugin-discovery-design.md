@@ -94,6 +94,13 @@ Try a wider window, such as --days 14 or --days 30.
 
 Update `SKILL.md` so the skill routes recent-plugin questions to `list_recent_plugins.py`.
 
+Recent-plugin queries use the same on-demand freshness behavior as recommendation
+queries. When the user invokes the skill, the agent checks whether
+`index/plugins-index.json` is missing or stale before answering. `stale` means the
+stored upstream commit SHA differs from `git ls-remote https://github.com/openai/plugins HEAD`.
+If the index is missing or stale, the agent runs `python3 scripts/build_index.py`
+first, then runs `list_recent_plugins.py`.
+
 Trigger examples include:
 
 - "Have any plugins been added recently?"
@@ -139,7 +146,7 @@ Add `test_list_recent_plugins.py` covering:
 ## Acceptance Criteria
 
 - The generated index records first-seen git metadata for every direct plugin manifest.
-- The skill can answer recent-plugin questions using the generated index without making a network call at query time.
+- After the on-demand freshness check has completed, `list_recent_plugins.py` answers from the generated index without making its own network call.
 - "Recently" defaults to 7 days.
 - Results remain explicitly scoped to `openai/plugins`.
 - Existing recommendation search behavior continues to work.
