@@ -58,10 +58,12 @@ class ListRecentPluginsTests(unittest.TestCase):
                     {
                         "name": "boundary",
                         "first_seen_at": "2026-05-24T12:00:00Z",
+                        "first_seen_commit": "boundarycommit",
                     },
                     {
                         "name": "too-old",
                         "first_seen_at": "2026-05-24T11:59:59Z",
+                        "first_seen_commit": "toooldcommit",
                     },
                 ]
             },
@@ -116,18 +118,28 @@ class ListRecentPluginsTests(unittest.TestCase):
                     )
 
     def test_recent_plugins_rejects_missing_first_seen_metadata(self):
+        index = {"plugins": [{"name": "missing-date", "plugin_path": "plugins/missing-date"}]}
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "Plugin missing-date is missing first_seen_at",
+        ):
+            list_recent_plugins.recent_plugins(index, days=7, limit=10, now=self.now)
+
+    def test_recent_plugins_rejects_missing_first_seen_commit(self):
         index = {
             "plugins": [
                 {
-                    "name": "missing-date",
-                    "plugin_path": "plugins/missing-date",
+                    "name": "missing-commit",
+                    "plugin_path": "plugins/missing-commit",
+                    "first_seen_at": "2026-05-31T09:00:00Z",
                 }
             ]
         }
 
         with self.assertRaisesRegex(
             ValueError,
-            "Plugin missing-date is missing first_seen_at",
+            "Plugin missing-commit is missing first_seen_commit",
         ):
             list_recent_plugins.recent_plugins(index, days=7, limit=10, now=self.now)
 

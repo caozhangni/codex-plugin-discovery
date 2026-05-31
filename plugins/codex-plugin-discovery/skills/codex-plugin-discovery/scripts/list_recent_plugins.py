@@ -57,6 +57,10 @@ def recent_plugins(
         if not first_seen_at:
             identifier = plugin.get("name") or plugin.get("plugin_path") or "unknown plugin"
             raise ValueError(f"Plugin {identifier} is missing first_seen_at")
+        first_seen_commit = plugin.get("first_seen_commit")
+        if not first_seen_commit:
+            identifier = plugin.get("name") or plugin.get("plugin_path") or "unknown plugin"
+            raise ValueError(f"Plugin {identifier} is missing first_seen_commit")
 
         first_seen = parse_timestamp(str(first_seen_at))
         if first_seen >= cutoff:
@@ -99,15 +103,14 @@ def render_results(results: list[dict[str, Any]], index: dict[str, Any], days: i
         description = plugin.get("description") or "No description provided."
         location = plugin.get("repository") or plugin.get("homepage") or plugin.get("plugin_path") or ""
         first_seen_at = parse_timestamp(str(plugin.get("first_seen_at"))).date().isoformat()
-        first_seen_commit = plugin.get("first_seen_commit")
+        first_seen_commit = plugin["first_seen_commit"]
 
         lines.append(f"{position}. {display_name} ({name})")
         lines.append(f"   Added: {first_seen_at}")
         lines.append(f"   Category: {category}")
         lines.append(f"   What it does: {description}")
         lines.append(f"   Source: {location}")
-        if first_seen_commit:
-            lines.append(f"   First seen commit: {first_seen_commit}")
+        lines.append(f"   First seen commit: {first_seen_commit}")
 
     return "\n".join(lines)
 
