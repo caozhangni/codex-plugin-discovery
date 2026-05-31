@@ -1,4 +1,6 @@
 import pathlib
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -9,12 +11,38 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import build_index
 import search_index
 
+FIXTURE_REPO = ROOT / "tests" / "fixtures" / "openai-plugins-sample"
+
+
+def run_git(repo_dir, *args, env=None):
+    result = subprocess.run(
+        ["git", *args],
+        cwd=repo_dir,
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=env,
+    )
+    return result.stdout.strip()
+
+
+def copy_fixture_to_git_repo(tmp_dir):
+    repo_dir = pathlib.Path(tmp_dir) / "openai-plugins-sample"
+    shutil.copytree(FIXTURE_REPO, repo_dir)
+    run_git(repo_dir, "init")
+    run_git(repo_dir, "config", "user.name", "Test User")
+    run_git(repo_dir, "config", "user.email", "test@example.com")
+    run_git(repo_dir, "add", ".")
+    run_git(repo_dir, "commit", "-m", "Initial fixture")
+    return repo_dir
+
 
 class SearchIndexTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.output = pathlib.Path(self.tmp.name) / "plugins-index.json"
-        fixture_repo = ROOT / "tests" / "fixtures" / "openai-plugins-sample"
+        fixture_repo = copy_fixture_to_git_repo(self.tmp.name)
         build_index.build_index(fixture_repo, self.output, "abc123")
 
     def tearDown(self):

@@ -23,12 +23,13 @@ Do not auto-install plugins. Recommend candidates and explain the evidence only.
 
 1. If the user asks what plugins are currently enabled/installed in this session, answer from the current session's available plugin list first. Keep it concise.
 2. If the user asks broadly what plugins are available, can be used, or exist in the marketplace, do not list every indexed plugin. State that this skill can search `openai/plugins`, explain the coverage limit, and ask for the task or category they care about.
-3. If the user asks for discoverable, installable, marketplace, or task-relevant plugins, use this skill's index.
-4. If `index/plugins-index.json` is missing or stale, run `python3 scripts/build_index.py`.
-5. Search with a concrete query, such as `python3 scripts/search_index.py "summarize support tickets"`.
-6. Present up to five candidates from the index.
-7. Explain matched fields and why each plugin may help.
-8. State that results only cover plugins present in `openai/plugins`.
+3. If the user asks for recent, recently added, new, last-week, past-N-days, or 最近几天 plugins, route to `python3 scripts/list_recent_plugins.py`. If the user provides a day count, pass `--days N`; otherwise use the default 7-day window. If `index/plugins-index.json` is missing or stale, run `python3 scripts/build_index.py` first. For mixed requests that ask for both recency and task recommendation, do not combine recency filtering with task recommendation in this first version; answer recent additions first and offer a separate task search.
+4. If the user asks for discoverable, installable, marketplace, or task-relevant plugins, use this skill's index.
+5. If `index/plugins-index.json` is missing or stale, run `python3 scripts/build_index.py`.
+6. Search with a concrete query, such as `python3 scripts/search_index.py "summarize support tickets"`.
+7. Present up to five candidates from the index.
+8. Explain matched fields and why each plugin may help.
+9. State that results only cover plugins present in `openai/plugins`.
 
 `stale` means the stored upstream commit SHA differs from `git ls-remote https://github.com/openai/plugins HEAD`.
 
@@ -59,6 +60,18 @@ For each recommendation, include:
 - Matched fields
 - Repository or plugin path
 - Confidence note
+
+For recent-plugin results, include:
+
+- Plugin name and display name
+- Added date
+- Category
+- Description
+- Repository or plugin path
+- First-seen commit
+- A note that results are scoped to `openai/plugins`
+
+If no recent plugins match the requested window, say no additions were found in `openai/plugins` for that period and suggest a wider window.
 
 If no candidate is strong, say no strong match was found in `openai/plugins` and suggest manually inspecting that repository or broadening the query.
 
