@@ -33,6 +33,12 @@ What Codex plugin could help me make a slide deck?
 Find a Codex plugin for analyzing spreadsheets.
 ```
 
+Ask for recently added plugins:
+
+```text
+What Codex plugins were added in the past 14 days?
+```
+
 Ask what a specific plugin does:
 
 ```text
@@ -56,6 +62,8 @@ cd skills/codex-plugin-discovery
 python3 scripts/build_index.py --cache-dir .cache --output index/plugins-index.json
 rm -rf .cache
 ```
+
+The builder reads git history from `openai/plugins` so each direct plugin manifest records when it first appeared. That first-seen metadata powers recent-plugin queries.
 
 ## Distribute As A Plugin
 
