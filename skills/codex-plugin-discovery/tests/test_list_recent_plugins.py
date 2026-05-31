@@ -19,6 +19,7 @@ class ListRecentPluginsTests(unittest.TestCase):
                 {
                     "name": "old",
                     "display_name": "Old Plugin",
+                    "description": "Older helper",
                     "category": "Productivity",
                     "plugin_path": "plugins/old",
                     "first_seen_at": "2026-05-20T12:00:00Z",
@@ -27,6 +28,7 @@ class ListRecentPluginsTests(unittest.TestCase):
                 {
                     "name": "newer",
                     "display_name": "Newer Plugin",
+                    "description": "Newer helper",
                     "category": "Research",
                     "plugin_path": "plugins/newer",
                     "first_seen_at": "2026-05-30T08:00:00Z",
@@ -35,6 +37,7 @@ class ListRecentPluginsTests(unittest.TestCase):
                 {
                     "name": "newest",
                     "display_name": "Newest Plugin",
+                    "description": "Newest helper",
                     "category": "Design",
                     "plugin_path": "plugins/newest",
                     "first_seen_at": "2026-05-31T09:00:00Z",
@@ -77,8 +80,11 @@ class ListRecentPluginsTests(unittest.TestCase):
         )
 
         self.assertIn("Results only cover openai/plugins (commit: abc123)", rendered)
+        self.assertIn("Plugins first added in the last 7 day(s):", rendered)
         self.assertIn("Newest Plugin (newest)", rendered)
-        self.assertIn("First seen: 2026-05-31T09:00:00Z", rendered)
+        self.assertIn("Added: 2026-05-31", rendered)
+        self.assertIn("What it does: Newest helper", rendered)
+        self.assertIn("Source: plugins/newest", rendered)
         self.assertIn("First seen commit: newestcommit", rendered)
         self.assertLess(rendered.index("Newest Plugin"), rendered.index("Newer Plugin"))
         self.assertNotIn("Old Plugin", rendered)
@@ -87,7 +93,7 @@ class ListRecentPluginsTests(unittest.TestCase):
         rendered = list_recent_plugins.render_results([], {"source": {}}, days=9)
 
         self.assertIn("Results only cover openai/plugins", rendered)
-        self.assertIn("No plugins were first added in the last 9 days.", rendered)
+        self.assertIn("No plugins were first added in the last 9 day(s).", rendered)
         self.assertIn("--days 14", rendered)
         self.assertIn("--days 30", rendered)
 

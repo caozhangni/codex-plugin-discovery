@@ -83,27 +83,31 @@ def render_results(results: list[dict[str, Any]], index: dict[str, Any], days: i
         lines.extend(
             [
                 "",
-                f"No plugins were first added in the last {days} days.",
+                f"No plugins were first added in the last {days} day(s).",
                 "Try a wider window with --days 14 or --days 30.",
             ]
         )
         return "\n".join(lines)
 
     lines.append("")
+    lines.append(f"Plugins first added in the last {days} day(s):")
+    lines.append("")
     for position, plugin in enumerate(results, start=1):
         display_name = plugin.get("display_name") or plugin.get("name") or "Unknown plugin"
         name = plugin.get("name") or display_name
         category = plugin.get("category") or "Uncategorized"
+        description = plugin.get("description") or "No description provided."
         location = plugin.get("repository") or plugin.get("homepage") or plugin.get("plugin_path") or ""
-        first_seen_at = plugin.get("first_seen_at") or "unknown"
+        first_seen_at = parse_timestamp(str(plugin.get("first_seen_at"))).date().isoformat()
         first_seen_commit = plugin.get("first_seen_commit")
 
         lines.append(f"{position}. {display_name} ({name})")
+        lines.append(f"   Added: {first_seen_at}")
         lines.append(f"   Category: {category}")
-        lines.append(f"   First seen: {first_seen_at}")
+        lines.append(f"   What it does: {description}")
+        lines.append(f"   Source: {location}")
         if first_seen_commit:
             lines.append(f"   First seen commit: {first_seen_commit}")
-        lines.append(f"   Source: {location}")
 
     return "\n".join(lines)
 
