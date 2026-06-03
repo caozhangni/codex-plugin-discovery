@@ -6,11 +6,33 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 
-REPOSITORY_URL = "https://github.com/openai/plugins"
+MANIFEST_SCOPE = "plugins/*/.codex-plugin/plugin.json"
+DEFAULT_REPOSITORY_URL = "https://github.com/openai/plugins"
+ROLE_BASED_REPOSITORY_URL = "https://github.com/openai/role-based-plugins"
+
+
+@dataclass(frozen=True)
+class RepositorySource:
+    repository: str
+    cache_name: str
+
+
+@dataclass(frozen=True)
+class IndexSource:
+    repo_dir: Path
+    repository: str
+    commit: str
+
+
+DEFAULT_SOURCES = (
+    RepositorySource(DEFAULT_REPOSITORY_URL, "openai-plugins"),
+    RepositorySource(ROLE_BASED_REPOSITORY_URL, "openai-role-based-plugins"),
+)
 
 
 def run_git(args: list[str], cwd: Path | None = None) -> str:
@@ -26,19 +48,20 @@ def run_git(args: list[str], cwd: Path | None = None) -> str:
     return result.stdout.strip()
 
 
-def remote_head() -> str:
+def remote_head(repository_url: str = DEFAULT_REPOSITORY_URL) -> str:
     """Return the current HEAD SHA from the upstream repository."""
-    output = run_git(["ls-remote", REPOSITORY_URL, "HEAD"])
+    output = run_git(["ls-remote", repository_url, "HEAD"])
     return output.split()[0]
 
 
-def ensure_repo(cache_dir: Path) -> Path:
-    """Ensure the upstream plugin repository is cached and checked out."""
-    repo_dir = cache_dir / "openai-plugins"
+def ensure_repo(cache_dir: Path, source: RepositorySource | None = None) -> Path:
+    """Ensure an upstream plugin repository is cached and checked out."""
+    selected = source or DEFAULT_SOURCES[0]
+    repo_dir = cache_dir / selected.cache_name
     cache_dir.mkdir(parents=True, exist_ok=True)
 
     if not repo_dir.exists():
-        run_git(["clone", REPOSITORY_URL, str(repo_dir)])
+        run_git(["clone", selected.repository, str(repo_dir)])
     else:
         if (repo_dir / ".git" / "shallow").exists():
             run_git(["fetch", "--unshallow", "origin"], cwd=repo_dir)
@@ -117,7 +140,12 @@ def manifest_first_seen(manifest_path: Path, repo_dir: Path) -> dict[str, str]:
     }
 
 
-def build_plugin_record(manifest_path: Path, repo_dir: Path) -> dict[str, Any]:
+def build_plugin_record(
+    manifest_path: Path,
+    repo_dir: Path,
+    source_repository: str = DEFAULT_REPOSITORY_URL,
+    source_commit: str = "local",
+) -> dict[str, Any]:
     """Build the recommendation fields for one plugin manifest."""
     manifest = read_json(manifest_path)
     interface = manifest.get("interface") or {}
@@ -169,6 +197,8 @@ def build_plugin_record(manifest_path: Path, repo_dir: Path) -> dict[str, Any]:
         "homepage": homepage,
         "plugin_path": plugin_path,
         "manifest_path": manifest_rel_path,
+        "source_repository": source_repository,
+        "source_commit": source_commit,
         "first_seen_at": first_seen["first_seen_at"],
         "first_seen_commit": first_seen["first_seen_commit"],
         "companion_surfaces": surfaces,
@@ -176,28 +206,63 @@ def build_plugin_record(manifest_path: Path, repo_dir: Path) -> dict[str, Any]:
     }
 
 
-def build_index(repo_dir: Path, output_path: Path, upstream_sha: str) -> dict[str, Any]:
-    """Build and write the plugin index."""
-    manifest_paths = scan_manifest_paths(repo_dir)
-    if not manifest_paths:
-        raise ValueError(f"No direct plugin manifests found under {repo_dir / 'plugins'}")
+def source_record(repository: str, commit: str) -> dict[str, str]:
+    """Return source metadata stored in the generated index."""
+    return {
+        "repository": repository,
+        "commit": commit,
+        "scope": MANIFEST_SCOPE,
+    }
 
-    plugins = [
-        build_plugin_record(manifest_path, repo_dir)
-        for manifest_path in manifest_paths
-    ]
+
+def build_index_from_sources(sources: list[IndexSource], output_path: Path) -> dict[str, Any]:
+    """Build and write a plugin index from one or more repository sources."""
+    source_entries = []
+    plugins = []
+
+    for source in sources:
+        manifest_paths = scan_manifest_paths(source.repo_dir)
+        if not manifest_paths:
+            raise ValueError(f"No direct plugin manifests found under {source.repo_dir / 'plugins'}")
+
+        source_entries.append(source_record(source.repository, source.commit))
+        plugins.extend(
+            build_plugin_record(
+                manifest_path,
+                source.repo_dir,
+                source_repository=source.repository,
+                source_commit=source.commit,
+            )
+            for manifest_path in manifest_paths
+        )
+
     index = {
-        "source": {
-            "repository": REPOSITORY_URL,
-            "commit": upstream_sha,
-            "scope": "plugins/*/.codex-plugin/plugin.json",
-        },
+        "sources": source_entries,
         "plugins": plugins,
     }
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(index, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return index
+
+
+def build_index(
+    repo_dir: Path,
+    output_path: Path,
+    upstream_sha: str,
+    repository_url: str = DEFAULT_REPOSITORY_URL,
+) -> dict[str, Any]:
+    """Build and write the plugin index for one local repository source."""
+    return build_index_from_sources(
+        sources=[
+            IndexSource(
+                repo_dir=repo_dir,
+                repository=repository_url,
+                commit=upstream_sha,
+            )
+        ],
+        output_path=output_path,
+    )
 
 
 def main() -> None:
@@ -208,13 +273,30 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.repo_dir:
-        upstream_sha = "local"
-        repo_dir = args.repo_dir
+        index = build_index(
+            repo_dir=args.repo_dir,
+            output_path=args.output,
+            upstream_sha="local",
+        )
     else:
-        upstream_sha = remote_head()
-        repo_dir = ensure_repo(args.cache_dir)
-    index = build_index(repo_dir=repo_dir, output_path=args.output, upstream_sha=upstream_sha)
-    print(f"indexed {len(index['plugins'])} plugins from {upstream_sha}")
+        sources = []
+        for repository_source in DEFAULT_SOURCES:
+            upstream_sha = remote_head(repository_source.repository)
+            repo_dir = ensure_repo(args.cache_dir, repository_source)
+            sources.append(
+                IndexSource(
+                    repo_dir=repo_dir,
+                    repository=repository_source.repository,
+                    commit=upstream_sha,
+                )
+            )
+        index = build_index_from_sources(sources=sources, output_path=args.output)
+
+    summary = ", ".join(
+        f"{source['repository']}@{source['commit'][:12]}"
+        for source in index["sources"]
+    )
+    print(f"indexed {len(index['plugins'])} plugins from {len(index['sources'])} source(s): {summary}")
 
 
 if __name__ == "__main__":

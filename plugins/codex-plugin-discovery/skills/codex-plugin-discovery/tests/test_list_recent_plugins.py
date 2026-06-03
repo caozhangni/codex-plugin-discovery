@@ -14,7 +14,18 @@ class ListRecentPluginsTests(unittest.TestCase):
     def setUp(self):
         self.now = datetime(2026, 5, 31, 12, 0, tzinfo=timezone.utc)
         self.index = {
-            "source": {"commit": "abc123"},
+            "sources": [
+                {
+                    "repository": "https://github.com/openai/plugins",
+                    "commit": "abc123",
+                    "scope": "plugins/*/.codex-plugin/plugin.json",
+                },
+                {
+                    "repository": "https://github.com/openai/role-based-plugins",
+                    "commit": "def456",
+                    "scope": "plugins/*/.codex-plugin/plugin.json",
+                },
+            ],
             "plugins": [
                 {
                     "name": "old",
@@ -22,6 +33,8 @@ class ListRecentPluginsTests(unittest.TestCase):
                     "description": "Older helper",
                     "category": "Productivity",
                     "plugin_path": "plugins/old",
+                    "source_repository": "https://github.com/openai/plugins",
+                    "source_commit": "abc123",
                     "first_seen_at": "2026-05-20T12:00:00Z",
                     "first_seen_commit": "oldcommit",
                 },
@@ -31,6 +44,8 @@ class ListRecentPluginsTests(unittest.TestCase):
                     "description": "Newer helper",
                     "category": "Research",
                     "plugin_path": "plugins/newer",
+                    "source_repository": "https://github.com/openai/plugins",
+                    "source_commit": "abc123",
                     "first_seen_at": "2026-05-30T08:00:00Z",
                     "first_seen_commit": "newercommit",
                 },
@@ -40,6 +55,8 @@ class ListRecentPluginsTests(unittest.TestCase):
                     "description": "Newest helper",
                     "category": "Design",
                     "plugin_path": "plugins/newest",
+                    "source_repository": "https://github.com/openai/role-based-plugins",
+                    "source_commit": "def456",
                     "first_seen_at": "2026-05-31T09:00:00Z",
                     "first_seen_commit": "newestcommit",
                 },
@@ -81,7 +98,8 @@ class ListRecentPluginsTests(unittest.TestCase):
             days=7,
         )
 
-        self.assertIn("Results only cover openai/plugins (commit: abc123)", rendered)
+        self.assertIn("Results cover openai/plugins and openai/role-based-plugins", rendered)
+        self.assertIn("Indexed from: https://github.com/openai/role-based-plugins", rendered)
         self.assertIn("Plugins first added in the last 7 day(s):", rendered)
         self.assertIn("Newest Plugin (newest)", rendered)
         self.assertIn("Added: 2026-05-31", rendered)
@@ -92,9 +110,26 @@ class ListRecentPluginsTests(unittest.TestCase):
         self.assertNotIn("Old Plugin", rendered)
 
     def test_empty_result_suggests_wider_windows(self):
-        rendered = list_recent_plugins.render_results([], {"source": {}}, days=9)
+        rendered = list_recent_plugins.render_results(
+            [],
+            {
+                "sources": [
+                    {
+                        "repository": "https://github.com/openai/plugins",
+                        "commit": "abc123",
+                        "scope": "plugins/*/.codex-plugin/plugin.json",
+                    },
+                    {
+                        "repository": "https://github.com/openai/role-based-plugins",
+                        "commit": "def456",
+                        "scope": "plugins/*/.codex-plugin/plugin.json",
+                    },
+                ]
+            },
+            days=9,
+        )
 
-        self.assertIn("Results only cover openai/plugins", rendered)
+        self.assertIn("Results cover openai/plugins and openai/role-based-plugins", rendered)
         self.assertIn("No plugins were first added in the last 9 day(s).", rendered)
         self.assertIn("--days 14", rendered)
         self.assertIn("--days 30", rendered)

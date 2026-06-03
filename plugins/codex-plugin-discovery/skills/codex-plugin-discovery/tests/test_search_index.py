@@ -61,7 +61,8 @@ class SearchIndexTests(unittest.TestCase):
         rendered = search_index.render_results(search_index.search(index, "dashboard charts", limit=1), index)
 
         self.assertIn("Beta Charts", rendered)
-        self.assertIn("Results only cover openai/plugins", rendered)
+        self.assertIn("Results cover openai/plugins", rendered)
+        self.assertIn("Indexed from: https://github.com/openai/plugins", rendered)
 
     def test_singular_query_matches_plural_metadata_terms(self):
         index = search_index.load_index(self.output)
@@ -99,6 +100,8 @@ class SearchIndexTests(unittest.TestCase):
                     "capabilities": ["summarization"],
                     "companion_surfaces": ["skills", "commands"],
                     "repository": "https://github.com/openai/plugins",
+                    "source_repository": "https://github.com/openai/role-based-plugins",
+                    "source_commit": "def456",
                     "search_text": "doc-helper doc helper draft release notes writing release notes summarization",
                 }
             ],
@@ -116,6 +119,7 @@ class SearchIndexTests(unittest.TestCase):
 
         rendered = search_index.render_results(results, index)
 
+        self.assertIn("Indexed from: https://github.com/openai/role-based-plugins", rendered)
         self.assertIn(
             "Matched fields: name (helper), display_name (helper), description (release), "
             "category (writing), keywords (release), capabilities (summarization), "
@@ -123,6 +127,30 @@ class SearchIndexTests(unittest.TestCase):
             rendered,
         )
         self.assertNotIn("Matched fields: search_text", rendered)
+
+    def test_search_no_match_mentions_both_source_repositories(self):
+        index = {
+            "sources": [
+                {
+                    "repository": "https://github.com/openai/plugins",
+                    "commit": "abc123",
+                    "scope": "plugins/*/.codex-plugin/plugin.json",
+                },
+                {
+                    "repository": "https://github.com/openai/role-based-plugins",
+                    "commit": "def456",
+                    "scope": "plugins/*/.codex-plugin/plugin.json",
+                },
+            ],
+            "plugins": [],
+        }
+
+        rendered = search_index.render_results([], index)
+
+        self.assertIn("Results cover openai/plugins and openai/role-based-plugins", rendered)
+        self.assertIn("No strong match was found in the indexed plugin sources.", rendered)
+        self.assertIn("https://github.com/openai/plugins", rendered)
+        self.assertIn("https://github.com/openai/role-based-plugins", rendered)
 
 
 if __name__ == "__main__":

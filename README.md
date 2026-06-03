@@ -1,8 +1,11 @@
 # Codex Plugin Discovery
 
-Codex Plugin Discovery is a Codex skill that helps find task-relevant Codex plugins from the official `openai/plugins` repository.
+Codex Plugin Discovery is a Codex skill that helps find task-relevant Codex plugins from two official OpenAI plugin repositories:
 
-It is intentionally scoped: it searches metadata generated from `https://github.com/openai/plugins` only. It does not read local Codex plugin caches, does not inspect the full Codex App Plugin Directory, and does not install plugins automatically.
+- `openai/plugins`
+- `openai/role-based-plugins`
+
+It is intentionally scoped to metadata generated from those repositories. It does not read local Codex plugin caches, does not inspect the full Codex App Plugin Directory, and does not install plugins automatically.
 
 ## Install As A Skill
 
@@ -63,7 +66,7 @@ python3 scripts/build_index.py --cache-dir .cache --output index/plugins-index.j
 rm -rf .cache
 ```
 
-The builder reads git history from `openai/plugins` so each direct plugin manifest records when it first appeared. That first-seen metadata powers recent-plugin queries.
+The builder reads git history from both source repositories so each direct plugin manifest records when it first appeared in its own repository. That first-seen metadata powers recent-plugin queries.
 
 ## Distribute As A Plugin
 
