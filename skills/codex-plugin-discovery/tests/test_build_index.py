@@ -93,13 +93,23 @@ class BuildIndexTests(unittest.TestCase):
             self.assertTrue(output.exists())
             written = json.loads(output.read_text(encoding="utf-8"))
             self.assertEqual(written, index)
-            self.assertEqual(index["source"]["repository"], "https://github.com/openai/plugins")
-            self.assertEqual(index["source"]["commit"], "abc123")
+            self.assertEqual(
+                index["sources"],
+                [
+                    {
+                        "repository": "https://github.com/openai/plugins",
+                        "commit": "abc123",
+                        "scope": "plugins/*/.codex-plugin/plugin.json",
+                    }
+                ],
+            )
             self.assertEqual([plugin["name"] for plugin in index["plugins"]], ["alpha", "beta"])
             self.assertNotIn("fixture-plugin", output.read_text(encoding="utf-8"))
             self.assertNotIn("Fixture Plugin", output.read_text(encoding="utf-8"))
 
             alpha = index["plugins"][0]
+            self.assertEqual(alpha["source_repository"], "https://github.com/openai/plugins")
+            self.assertEqual(alpha["source_commit"], "abc123")
             self.assertEqual(alpha["display_name"], "Alpha Support")
             self.assertEqual(alpha["category"], "Productivity")
             self.assertIn("analyze customer support tickets", alpha["search_text"])
@@ -150,6 +160,66 @@ class BuildIndexTests(unittest.TestCase):
                 plugins["alpha"]["first_seen_commit"],
                 plugins["beta"]["first_seen_commit"],
             )
+
+    def test_build_index_from_sources_combines_repositories_and_records_source_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = pathlib.Path(tmp_dir)
+            first_repo = init_git_repo(tmp_path / "first-repo")
+            second_repo = init_git_repo(tmp_path / "second-repo")
+            output = tmp_path / "plugins-index.json"
+
+            write_manifest(first_repo, "alpha")
+            alpha_commit = commit_all(
+                first_repo,
+                "Add alpha plugin",
+                "2026-05-01T12:00:00+00:00",
+            )
+            write_manifest(second_repo, "role-sales")
+            role_commit = commit_all(
+                second_repo,
+                "Add role sales plugin",
+                "2026-05-03T12:00:00+00:00",
+            )
+
+            index = build_index.build_index_from_sources(
+                sources=[
+                    build_index.IndexSource(
+                        repo_dir=first_repo,
+                        repository="https://github.com/openai/plugins",
+                        commit=alpha_commit,
+                    ),
+                    build_index.IndexSource(
+                        repo_dir=second_repo,
+                        repository="https://github.com/openai/role-based-plugins",
+                        commit=role_commit,
+                    ),
+                ],
+                output_path=output,
+            )
+
+            self.assertEqual(
+                index["sources"],
+                [
+                    {
+                        "repository": "https://github.com/openai/plugins",
+                        "commit": alpha_commit,
+                        "scope": "plugins/*/.codex-plugin/plugin.json",
+                    },
+                    {
+                        "repository": "https://github.com/openai/role-based-plugins",
+                        "commit": role_commit,
+                        "scope": "plugins/*/.codex-plugin/plugin.json",
+                    },
+                ],
+            )
+            plugins = {plugin["name"]: plugin for plugin in index["plugins"]}
+            self.assertEqual(set(plugins), {"alpha", "role-sales"})
+            self.assertEqual(plugins["alpha"]["source_repository"], "https://github.com/openai/plugins")
+            self.assertEqual(plugins["alpha"]["source_commit"], alpha_commit)
+            self.assertEqual(plugins["role-sales"]["source_repository"], "https://github.com/openai/role-based-plugins")
+            self.assertEqual(plugins["role-sales"]["source_commit"], role_commit)
+            self.assertEqual(plugins["role-sales"]["first_seen_commit"], role_commit)
+            self.assertEqual(json.loads(output.read_text(encoding="utf-8")), index)
 
     def test_manifest_first_seen_reports_path_when_git_log_fails(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -218,7 +288,8 @@ class BuildIndexTests(unittest.TestCase):
                 sys.argv = original_argv
 
             written = json.loads(output.read_text(encoding="utf-8"))
-            self.assertEqual(written["source"]["commit"], "local")
+            self.assertEqual(written["sources"][0]["commit"], "local")
+            self.assertEqual(written["sources"][0]["repository"], "https://github.com/openai/plugins")
             self.assertEqual([plugin["name"] for plugin in written["plugins"]], ["alpha", "beta"])
 
     def test_build_index_rejects_repo_without_direct_manifests(self):
