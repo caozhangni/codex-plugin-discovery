@@ -168,21 +168,65 @@ def search(index: dict[str, Any], query: str, limit: int = 5) -> list[dict[str, 
     return results[:limit]
 
 
+def repository_label(repository: str) -> str:
+    """Return a compact GitHub repository label for display."""
+    prefix = "https://github.com/"
+    if repository.startswith(prefix):
+        return repository[len(prefix):]
+    return repository
+
+
+def index_sources(index: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return source metadata, accepting old single-source indexes as a fallback."""
+    sources = index.get("sources")
+    if isinstance(sources, list) and sources:
+        return [source for source in sources if isinstance(source, dict)]
+    source = index.get("source")
+    if isinstance(source, dict) and source:
+        return [source]
+    return []
+
+
+def join_labels(labels: list[str]) -> str:
+    """Join repository labels for a readable boundary sentence."""
+    if len(labels) <= 1:
+        return "".join(labels)
+    return f"{', '.join(labels[:-1])} and {labels[-1]}"
+
+
+def source_boundary(index: dict[str, Any]) -> str:
+    """Render the source boundary line for index-backed search output."""
+    sources = index_sources(index)
+    if not sources:
+        return "Results cover indexed plugin metadata"
+
+    labels = [repository_label(str(source.get("repository") or "unknown source")) for source in sources]
+    commits = [
+        f"{repository_label(str(source.get('repository') or 'unknown source'))}@{str(source.get('commit'))[:12]}"
+        for source in sources
+        if source.get("commit")
+    ]
+    boundary = f"Results cover {join_labels(labels)}"
+    if commits:
+        boundary = f"{boundary} (commits: {', '.join(commits)})"
+    return boundary
+
+
+def indexed_source(plugin: dict[str, Any]) -> str:
+    """Return the repository that supplied this plugin record."""
+    return str(plugin.get("source_repository") or "Unknown indexed source")
+
+
 def render_results(results: list[dict[str, Any]], index: dict[str, Any]) -> str:
     """Render search results as Markdown-ish recommendations."""
-    boundary = "Results only cover openai/plugins"
-    source = index.get("source") or {}
-    commit = source.get("commit")
-    lines = [boundary]
-    if commit:
-        lines[0] = f"{lines[0]} (commit: {commit})"
+    lines = [source_boundary(index)]
 
     if not results:
         lines.extend(
             [
                 "",
-                "No strong match was found in openai/plugins.",
-                "Try broadening the query or manually inspecting https://github.com/openai/plugins.",
+                "No strong match was found in the indexed plugin sources.",
+                "Try broadening the query or manually inspecting https://github.com/openai/plugins and https://github.com/openai/role-based-plugins.",
             ]
         )
         return "\n".join(lines)
@@ -202,6 +246,7 @@ def render_results(results: list[dict[str, Any]], index: dict[str, Any]) -> str:
         lines.append(f"   Why it matches: matched query terms {matched_terms or 'none'} in indexed plugin metadata.")
         lines.append(f"   Matched fields: {fields}")
         lines.append(f"   Source: {location}")
+        lines.append(f"   Indexed from: {indexed_source(plugin)}")
         lines.append(f"   Confidence: {score} matched term(s); inspect the manifest before installing.")
 
     return "\n".join(lines)
